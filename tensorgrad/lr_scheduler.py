@@ -72,7 +72,7 @@ class StepLR(LRScheduler):
         optimizer: Any,
         step_size: int,
         gamma: float = 0.1,
-        last_epoch: int = 0
+        last_epoch: int = 0,
     ) -> None:
         super().__init__(optimizer)
         self.step_size = step_size
@@ -145,7 +145,7 @@ class ExponentialLR(LRScheduler):
         self,
         optimizer: Any,
         gamma: float,
-        last_epoch: int = 0
+        last_epoch: int = 0,
     ) -> None:
         super().__init__(optimizer)
         self.gamma = gamma
@@ -182,7 +182,7 @@ class CosineAnnealingLR(LRScheduler):
         optimizer: Any,
         T_max: int,
         eta_min: float = 0.0,
-        last_epoch: int = 0
+        last_epoch: int = 0,
     ) -> None:
         super().__init__(optimizer)
         self.T_max = T_max

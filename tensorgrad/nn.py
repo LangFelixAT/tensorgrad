@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Sequence, Tuple, Union
-from src.tensor import Tensor
+from tensorgrad.tensor import Tensor
 
 class Module:
     """

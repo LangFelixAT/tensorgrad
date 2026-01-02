@@ -524,7 +524,7 @@ class Tensor:
     def max(
         self, 
         dim: Optional[int] = None,
-        keepdim: bool = False
+        keepdim: bool = False,
     ) -> "Tensor":
         """
         Compute the maximum of elements along a dimension.
@@ -585,7 +585,7 @@ class Tensor:
     def sum(
         self,
         dim: Optional[Union[int, Tuple[int, ...]]] = None,
-        keepdim: bool = False
+        keepdim: bool = False,
     ) -> "Tensor":
         """
         Sum of elements along a dimension.
@@ -637,7 +637,7 @@ class Tensor:
     def mean(
         self,
         dim: Optional[Union[int, Tuple[int, ...]]] = None,
-        keepdim: bool = False
+        keepdim: bool = False,
     ) -> "Tensor":
         """
         Compute the mean of elements along a dimension.
@@ -684,7 +684,7 @@ class Tensor:
         self,
         dim: Optional[Union[int, Tuple[int, ...]]] = None,
         keepdim: bool = False,
-        unbiased: bool = True
+        unbiased: bool = True,
     ) -> "Tensor":
         """
         Compute the variance of elements along a dimension.
@@ -746,7 +746,7 @@ class Tensor:
 
     def reshape(
         self,
-        *shape: int
+        *shape: int,
     ) -> "Tensor":
         """
         Return a tensor with the same data but a new shape.
@@ -788,7 +788,7 @@ class Tensor:
     def transpose(
         self,
         dim0: int,
-        dim1: int
+        dim1: int,
     ) -> "Tensor":
         """
         Swap two dimensions of the tensor.
@@ -820,7 +820,7 @@ class Tensor:
 
     def permute(
         self,
-        *dims: int
+        *dims: int,
     ) -> "Tensor":
         """
         Permute (reorder) the tensor’s dimensions.
@@ -863,7 +863,7 @@ class Tensor:
 
     def squeeze(
         self,
-        dim: Optional[int] = None
+        dim: Optional[int] = None,
     ) -> "Tensor":
         """
         Remove dimensions of size 1 from the tensor shape.
@@ -908,7 +908,7 @@ class Tensor:
 
     def unsqueeze(
         self,
-        dim: int
+        dim: int,
     ) -> "Tensor":
         """
         Insert a new dimension of size 1 at the specified position.
@@ -955,7 +955,7 @@ class Tensor:
     def gather(
         self,
         dim: int,
-        index: "Tensor"
+        index: "Tensor",
     ) -> "Tensor":
         """
         Gather values along an axis using integer indices (NumPy/PyTorch-style).
@@ -1215,7 +1215,7 @@ class Tensor:
     def logsumexp(
         self,
         dim: Optional[Union[int, Tuple[int, ...]]] = None,
-        keepdim: bool = False
+        keepdim: bool = False,
     ) -> "Tensor":
         """
         Numerically stable log-sum-exp reduction.
@@ -1267,7 +1267,7 @@ class Tensor:
 
     def log_softmax(
         self,
-        dim: Optional[int] = None
+        dim: Optional[int] = None,
     ) -> "Tensor":
         """
         Computes the log of the softmax function along the given dimension.
@@ -1289,7 +1289,7 @@ class Tensor:
     
     def pad2d(
         self,
-        padding: Union[int, Tuple[int, int], Tuple[int, int, int, int]]
+        padding: Union[int, Tuple[int, int], Tuple[int, int, int, int]],
     ) -> "Tensor":
         """
         Applies zero-padding to the spatial dimensions (H, W) of a 4D tensor.
@@ -1332,7 +1332,7 @@ class Tensor:
 
     def backward(
         self,
-        gradient: Optional[Any] = None
+        gradient: Optional[Any] = None,
     ) -> None:
         """
         Performs backpropagation through the computation graph, computing gradients
@@ -1434,7 +1434,7 @@ class Tensor:
 
     def to(
         self,
-        device: str
+        device: str,
     ) -> "Tensor":
         """
         Moves the tensor to the specified device (CPU or CUDA).
@@ -1490,7 +1490,7 @@ class Tensor:
     @staticmethod
     def _cat(
         tensors: Sequence["Tensor"],
-        dim: int = 0
+        dim: int = 0,
     ) -> "Tensor":
         """
         Concatenate tensors along a given dimension (NumPy/CuPy semantics).
@@ -1674,7 +1674,7 @@ class Tensor:
     @staticmethod
     def _ensure_tensor(
         x: Union["Tensor", Any], 
-        backend: Any
+        backend: Any,
     ) -> "Tensor":
         """
         Ensure that ``x`` is a :class:``Tensor`` on the specified backend.
@@ -1695,7 +1695,7 @@ class Tensor:
     @staticmethod
     def _accumulate_grad(
         tensor: "Tensor",
-        grad: Any
+        grad: Any,
     ) -> None:
         """
         Accumulate a gradient contribution into ``tensor.grad``.
@@ -1799,4 +1799,50 @@ class Tensor:
         else:
             xp = np
         data = scale * xp.random.randn(*shape).astype(xp.float32)
+        return Tensor(data, requires_grad=requires_grad)
+    
+    @staticmethod
+    def randint(
+        low: int,
+        high: int,
+        size: Union[int, Tuple[int, ...]],
+        requires_grad: bool = False,
+        device: Optional[str] = "cpu",
+    ) -> "Tensor":
+        """
+        Create a tensor with values sampled from a normal distribution.
+
+        Samples i.i.d. values from ``N(0, 1)`` and scales them by ``scale``,
+        resulting in a distribution ``N(0, scale^2)``.
+
+        Parameters
+        ----------
+        *shape : int
+            Shape of the output tensor.
+        requires_grad : bool, default=False
+            If True (and global grad mode is enabled), operations on the tensor
+            will be tracked for automatic differentiation.
+        scale : float, default=1.0
+            Multiplicative scale applied to the sampled values.
+        device : str or None, default="cpu"
+            Target device for the tensor (``"cpu"`` or ``"cuda"``).
+
+        Returns
+        -------
+        Tensor
+            A float32 tensor with normally distributed values.
+
+        Notes
+        -----
+        - Equivalent to ``torch.randn`` with an explicit scaling factor.
+        - Commonly used for parameter initialization.
+        """
+        dev = _normalize_device(device) or "cpu"
+        if dev == "cuda":
+            if not _HAS_CUPY:
+                raise RuntimeError("CUDA requested but CuPy is not installed/available.")
+            xp = cp
+        else:
+            xp = np
+        data = scale * xp.random.randint(*shape).astype(xp.float32)
         return Tensor(data, requires_grad=requires_grad)

@@ -1,8 +1,13 @@
 from typing import Any, Optional
-from src.tensor import no_grad
-from src.lr_scheduler import ReduceLROnPlateau
+from tensorgrad.tensor import no_grad
+from tensorgrad.lr_scheduler import ReduceLROnPlateau
 
-def train_one_epoch(model: Any, dataloader: Any, loss_fn: Any, optimizer: Any) -> float:
+def train_one_epoch(
+    model: Any,
+    dataloader: Any,
+    loss_fn: Any,
+    optimizer: Any,
+) -> float:
     """
     Train a model for one epoch.
 
@@ -44,7 +49,11 @@ def train_one_epoch(model: Any, dataloader: Any, loss_fn: Any, optimizer: Any) -
 
     return total_loss / max(1, total_samples)
 
-def evaluate(model: Any, dataloader: Any, loss_fn: Any) -> float:
+def evaluate(
+    model: Any,
+    dataloader: Any,
+    loss_fn: Any,
+) -> float:
     """
     Evaluate a model without gradient tracking.
 

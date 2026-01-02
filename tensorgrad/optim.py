@@ -1,5 +1,5 @@
 from typing import Any, Dict, Iterable, Tuple
-from src.tensor import Tensor
+from tensorgrad.tensor import Tensor
 
 class Optimizer:
     """

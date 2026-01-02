@@ -10,9 +10,9 @@ except Exception:
 
 def _is_cupy_array(x: Any) -> bool:
     """
-    Return whether `x` is a CuPy ndarray.
+    Return whether ``x`` is a CuPy ndarray.
 
-    This is safe when CuPy is not installed: it short-circuits on `_HAS_CUPY`.
+    This is safe when CuPy is not installed: it short-circuits on ``_HAS_CUPY``.
 
     Parameters
     ----------
@@ -22,12 +22,12 @@ def _is_cupy_array(x: Any) -> bool:
     Returns
     -------
     bool
-        True if CuPy is available and `x` is an instance of `cupy.ndarray`,
+        True if CuPy is available and ``x`` is an instance of ``cupy.ndarray``,
         False otherwise.
 
     Notes
     -----
-    This checks only for `cupy.ndarray`. If you want to treat *any* object
+    This checks only for ``cupy.ndarray``. If you want to treat *any* object
     implementing the CUDA Array Interface as "GPU-backed", you may extend
     this to check for the ``__cuda_array_interface__`` attribute as well.
     """
@@ -52,7 +52,7 @@ def _normalize_device(device: Optional[Union[str, _DeviceStr]]) -> Optional[_Dev
     Raises
     ------
     ValueError
-        If `device` is a string that is neither 'cpu' nor startswith 'cuda'.
+        If ``device`` is a string that is neither 'cpu' nor startswith 'cuda'.
 
     Examples
     --------
@@ -81,7 +81,7 @@ def _normalize_device(device: Optional[Union[str, _DeviceStr]]) -> Optional[_Dev
 _grad_enabled = True
 """bool: Global flag indicating whether automatic differentiation is enabled.
 
-This flag is toggled by the :class:`no_grad` context manager.
+This flag is toggled by the :class:``no_grad`` context manager.
 When ``_grad_enabled`` is ``False``, operations on tensors will not
 be tracked for gradient computation.
 """
@@ -121,13 +121,13 @@ class Tensor:
 
     This class wraps a NumPy or CuPy array (selected per instance) and
     records a computation graph when gradient tracking is enabled.
-    Backpropagation is triggered via :meth:`backward`.
+    Backpropagation is triggered via :meth:``backward``.
 
     Notes
     -----
     - Backend is chosen per tensor: CPU uses NumPy, CUDA uses CuPy.
     - DType is normalized to ``float32`` on construction.
-    - Gradient storage ``.grad`` is allocated lazily at init time only if
+    - Gradient storage ``.grad`` is allocated eagerly ``zeros_like(data)`` only if
       ``requires_grad`` is True *and* global grad mode is enabled.
     - Operations use the instance's backend (``self.backend``) to remain
       device-agnostic.
@@ -156,7 +156,7 @@ class Tensor:
         requires_grad : bool, default False
             If True (and global grad mode is enabled), this tensor will
             track operations and accumulate gradients into ``.grad`` during
-            :meth:`backward`. If False, no gradient is tracked for this tensor.
+            :meth:``backward``. If False, no gradient is tracked for this tensor.
         device : {'cpu', 'cuda', 'cuda:0', ...} or None, optional
             Desired device. If 'cuda'/* or 'cuda:idx' is requested but CuPy is
             unavailable, a ``RuntimeError`` is raised. If None, the device is
@@ -169,7 +169,7 @@ class Tensor:
         grad : same as ``data`` or None
             Gradient buffer. Allocated as zeros_like(data) when
             ``requires_grad`` is True and global grad mode is enabled;
-            otherwise None until first backward that touches this tensor.
+            otherwise None.
         backend : module
             Either ``numpy`` (CPU) or ``cupy`` (CUDA) for all ops on this tensor.
         requires_grad : bool
@@ -484,7 +484,7 @@ class Tensor:
         Index or slice into the tensor (NumPy-style).
 
         Supports integer, slice, and tuple indexing (e.g. ``x[0]``, ``x[:, 1:3]``).
-        Returns a new tensor view of the selected elements.
+        Returns a new tensor containing the selected elements.
 
         Parameters
         ----------
@@ -494,8 +494,7 @@ class Tensor:
         Returns
         -------
         Tensor
-            A new tensor containing the indexed data. Shares no gradient state
-            with the original tensor but records it as a parent for autograd.
+            Returns a new tensor containing the selected elements.
 
         Notes
         -----
@@ -522,7 +521,11 @@ class Tensor:
         out._backward = _backward
         return out
 
-    def max(self, dim: Optional[int] = None, keepdim: bool = False) -> "Tensor":
+    def max(
+        self, 
+        dim: Optional[int] = None,
+        keepdim: bool = False
+    ) -> "Tensor":
         """
         Compute the maximum of elements along a dimension.
 
@@ -579,7 +582,11 @@ class Tensor:
 
         return out
 
-    def sum(self, dim: Optional[Union[int, Tuple[int, ...]]] = None, keepdim: bool = False) -> "Tensor":
+    def sum(
+        self,
+        dim: Optional[Union[int, Tuple[int, ...]]] = None,
+        keepdim: bool = False
+    ) -> "Tensor":
         """
         Sum of elements along a dimension.
 
@@ -621,13 +628,17 @@ class Tensor:
         def _backward():
             grad = out.grad
             if not keepdim and dim is not None:
-                grad = Tensor._expand_like(grad, self.data.shape)
+                grad = Tensor._expand_like(grad, self.data.shape, dim)
             Tensor._accumulate_grad(self, grad)
         out._backward = _backward
 
         return out
 
-    def mean(self, dim: Optional[Union[int, Tuple[int, ...]]] = None, keepdim: bool = False) -> "Tensor":
+    def mean(
+        self,
+        dim: Optional[Union[int, Tuple[int, ...]]] = None,
+        keepdim: bool = False
+    ) -> "Tensor":
         """
         Compute the mean of elements along a dimension.
 
@@ -669,7 +680,12 @@ class Tensor:
 
         return out / self.backend.array(divisor, dtype=self.data.dtype)
 
-    def var(self, dim: Optional[Union[int, Tuple[int, ...]]] = None, keepdim: bool = False, unbiased: bool = True) -> "Tensor":
+    def var(
+        self,
+        dim: Optional[Union[int, Tuple[int, ...]]] = None,
+        keepdim: bool = False,
+        unbiased: bool = True
+    ) -> "Tensor":
         """
         Compute the variance of elements along a dimension.
 
@@ -728,7 +744,10 @@ class Tensor:
 
         return out / self.backend.array(divisor, dtype=self.data.dtype)
 
-    def reshape(self, *shape: int) -> "Tensor":
+    def reshape(
+        self,
+        *shape: int
+    ) -> "Tensor":
         """
         Return a tensor with the same data but a new shape.
 
@@ -766,7 +785,11 @@ class Tensor:
 
         return out
 
-    def transpose(self, dim0: int, dim1: int) -> "Tensor":
+    def transpose(
+        self,
+        dim0: int,
+        dim1: int
+    ) -> "Tensor":
         """
         Swap two dimensions of the tensor.
 
@@ -795,7 +818,10 @@ class Tensor:
 
         return self.permute(*dims)
 
-    def permute(self, *dims: int) -> "Tensor":
+    def permute(
+        self,
+        *dims: int
+    ) -> "Tensor":
         """
         Permute (reorder) the tensor’s dimensions.
 
@@ -835,7 +861,10 @@ class Tensor:
 
         return out
 
-    def squeeze(self, dim: Optional[int] = None) -> "Tensor":
+    def squeeze(
+        self,
+        dim: Optional[int] = None
+    ) -> "Tensor":
         """
         Remove dimensions of size 1 from the tensor shape.
 
@@ -877,7 +906,10 @@ class Tensor:
 
         return out
 
-    def unsqueeze(self, dim: int) -> "Tensor":
+    def unsqueeze(
+        self,
+        dim: int
+    ) -> "Tensor":
         """
         Insert a new dimension of size 1 at the specified position.
 
@@ -920,7 +952,11 @@ class Tensor:
 
         return out
 
-    def gather(self, dim: int, index: "Tensor") -> "Tensor":
+    def gather(
+        self,
+        dim: int,
+        index: "Tensor"
+    ) -> "Tensor":
         """
         Gather values along an axis using integer indices (NumPy/PyTorch-style).
 
@@ -982,7 +1018,7 @@ class Tensor:
         """
         Element-wise exponential function.
 
-        Computes :math:`y_i = e^{x_i}` for each element in the tensor.
+        Computes :math:``y_i = e^{x_i}`` for each element in the tensor.
 
         Returns
         -------
@@ -1018,7 +1054,7 @@ class Tensor:
         """
         Element-wise natural logarithm.
 
-        Computes :math:`y_i = \log(x_i)` for each element of the tensor.
+        Computes :math:``y_i = \log(x_i)`` for each element of the tensor.
 
         Returns
         -------
@@ -1051,7 +1087,7 @@ class Tensor:
         """
         Element-wise hyperbolic tangent.
 
-        Computes :math:`y_i = \\tanh(x_i)` for each element of the tensor.
+        Computes :math:``y_i = \\tanh(x_i)`` for each element of the tensor.
 
         Returns
         -------
@@ -1084,7 +1120,7 @@ class Tensor:
         """
         Element-wise logistic sigmoid function.
 
-        Computes :math:`y_i = \\frac{1}{1 + e^{-x_i}}` for each element of the tensor.
+        Computes :math:``y_i = \\frac{1}{1 + e^{-x_i}}`` for each element of the tensor.
 
         Returns
         -------
@@ -1117,7 +1153,7 @@ class Tensor:
         """
         Element-wise Rectified Linear Unit (ReLU) activation.
 
-        Computes :math:`y_i = \\max(0, x_i)` for each element of the tensor.
+        Computes :math:``y_i = \\max(0, x_i)`` for each element of the tensor.
 
         Returns
         -------
@@ -1176,7 +1212,11 @@ class Tensor:
         c = (2 / self.backend.pi) ** 0.5
         return 0.5 * self * (1 + ((self + 0.044715 * self ** 3) * c).tanh())
     
-    def logsumexp(self, dim=None, keepdim=False) -> "Tensor":
+    def logsumexp(
+        self,
+        dim: Optional[Union[int, Tuple[int, ...]]] = None,
+        keepdim: bool = False
+    ) -> "Tensor":
         """
         Numerically stable log-sum-exp reduction.
 
@@ -1225,7 +1265,10 @@ class Tensor:
         else:
             return log_sum_exp + max_val.squeeze(dim)
 
-    def log_softmax(self, dim=None) -> "Tensor":
+    def log_softmax(
+        self,
+        dim: Optional[int] = None
+    ) -> "Tensor":
         """
         Computes the log of the softmax function along the given dimension.
 
@@ -1244,7 +1287,10 @@ class Tensor:
         """
         return self - self.logsumexp(dim=dim, keepdim=True)
     
-    def pad2d(self, padding) -> "Tensor":
+    def pad2d(
+        self,
+        padding: Union[int, Tuple[int, int], Tuple[int, int, int, int]]
+    ) -> "Tensor":
         """
         Applies zero-padding to the spatial dimensions (H, W) of a 4D tensor.
 
@@ -1252,7 +1298,7 @@ class Tensor:
         ----------
         padding : int or tuple
             Padding configuration:
-            - ``int p`` → pad all sides by `p`.
+            - ``int p`` → pad all sides by ``p``.
             - ``(pH, pW)`` → pad height and width symmetrically.
             - ``(t, b, l, r)`` → pad top, bottom, left, and right separately.
 
@@ -1284,7 +1330,10 @@ class Tensor:
         out._backward = _backward
         return out
 
-    def backward(self, gradient=None) -> None:
+    def backward(
+        self,
+        gradient: Optional[Any] = None
+    ) -> None:
         """
         Performs backpropagation through the computation graph, computing gradients
         for all tensors that have ``requires_grad=True``.
@@ -1297,8 +1346,7 @@ class Tensor:
         ----------
         gradient : array-like, optional
             Gradient of the output with respect to itself.
-            - If ``None``, a tensor of ones with the same shape as ``self.data`` is used.
-            - Typically provided only for non-scalar tensors.
+            - If ``gradient`` is None, uses ``ones_like(self.data)`` (this allows calling ``backward()`` on non-scalar tensors, unlike PyTorch).
 
         Raises
         ------
@@ -1310,8 +1358,7 @@ class Tensor:
         - The method constructs a topological ordering of the computation graph
         before performing backpropagation to ensure correct gradient propagation.
         - Gradients are accumulated in the ``.grad`` attribute of each tensor.
-        - This is the main entry point for autograd in the framework and
-        corresponds to ``torch.Tensor.backward()``.
+        - This is the main entry point for autograd in the framework.
 
         Examples
         --------
@@ -1385,7 +1432,10 @@ class Tensor:
 
         return f"tensor({data_str}, {', '.join(details)})"
 
-    def to(self, device: str) -> "Tensor":
+    def to(
+        self,
+        device: str
+    ) -> "Tensor":
         """
         Moves the tensor to the specified device (CPU or CUDA).
 
@@ -1433,12 +1483,15 @@ class Tensor:
             self.backend = cp
         return self
 
-    def xp(self) -> None:
+    def xp(self) -> Any:
         """Return the current array backend (NumPy or CuPy)."""
         return self.backend
     
     @staticmethod
-    def _cat(tensors: Sequence["Tensor"], dim: int = 0) -> "Tensor":
+    def _cat(
+        tensors: Sequence["Tensor"],
+        dim: int = 0
+    ) -> "Tensor":
         """
         Concatenate tensors along a given dimension (NumPy/CuPy semantics).
 
@@ -1480,10 +1533,61 @@ class Tensor:
         return out
 
     @staticmethod
-    def _im2col(x, kH, kW, sH, sW, dH, dW, Hout, Wout, pH, pW):
+    def _im2col(
+        x: "Tensor",
+        kH: int, kW: int,
+        sH: int, sW: int,
+        dH: int, dW: int,
+        Hout: int, Wout: int,
+        pH: int, pW: int,
+    ) -> "Tensor":
         """
-        x: (N, C, H, W) Tensor
-        returns Xcols: (N, C*kH*kW, Hout*Wout) Tensor
+        Convert a 4D image batch into a 2D "column" matrix (im2col) for convolution.
+
+        This helper rearranges sliding local blocks from an input tensor into a
+        matrix suitable for expressing a 2D convolution as a matrix multiplication.
+
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor of shape ``(N, C, H, W)``.
+        kH, kW : int
+            Kernel (filter) height and width.
+        sH, sW : int
+            Stride along height and width.
+        dH, dW : int
+            Dilation along height and width.
+        Hout, Wout : int
+            Output spatial size that the convolution will produce.
+            These are typically computed as:
+            ``Hout = floor((H + 2*pH - dH*(kH-1) - 1)/sH) + 1`` and similarly for Wout.
+        pH, pW : int
+            Zero-padding applied symmetrically to the input along height and width.
+
+        Returns
+        -------
+        Tensor
+            Tensor ``Xcols`` of shape ``(N, C*kH*kW, Hout*Wout)``.
+            Each column corresponds to one spatial output position (flattened over
+            ``Hout*Wout``), and each column contains the flattened receptive field
+            across channels and kernel elements.
+
+        Notes
+        -----
+        - This function uses :meth:``Tensor.pad2d``, slicing, reshape, and concatenate,
+        so gradients flow back to ``x`` through the autograd graph.
+        - The layout matches common im2col conventions used to implement convolution
+        efficiently via GEMM:
+            - reshape to ``(N, C*kH*kW, Hout*Wout)``
+            - later, a weight matrix of shape ``(Cout, C*kH*kW)`` can multiply it.
+
+        Examples
+        --------
+        >>> x = Tensor.randn(2, 3, 5, 5, requires_grad=True)  # (N=2,C=3,H=5,W=5)
+        >>> Xcols = Tensor._im2col(x, kH=3, kW=3, sH=1, sW=1, dH=1, dW=1,
+        ...                        Hout=3, Wout=3, pH=0, pW=0)
+        >>> Xcols.shape
+        (2, 27, 9)
         """
         x_pad = x.pad2d((pH, pH, pW, pW))
 
@@ -1507,14 +1611,32 @@ class Tensor:
         return Xcols
 
     @staticmethod
-    def _expand_like(x, target_shape, dims_reduced):
+    def _expand_like(
+        x: Any,
+        target_shape: Tuple[int, ...],
+        dims_reduced: Union[int, Tuple[int, ...]],
+    ) -> Any:
         """
-        Expand tensor x to match target_shape by adding dimensions at dims_reduced
+        Expand an array to ``target_shape`` by re-inserting reduced dimensions and broadcasting.
+
+        Parameters
+        ----------
+        x : numpy.ndarray or cupy.ndarray
+            Input array (backend array, not a Tensor).
+        target_shape : tuple[int, ...]
+            Desired output shape.
+        dims_reduced : int or tuple[int, ...]
+            Axis/axes that were reduced and should be re-inserted as singleton dims.
+
+        Returns
+        -------
+        numpy.ndarray or cupy.ndarray
+            Broadcasted view/array with shape ``target_shape``.
         """
         if isinstance(dims_reduced, int):
             dims_reduced = (dims_reduced,)
 
-        backend = x.backend
+        backend = cp if (_HAS_CUPY and isinstance(x, cp.ndarray)) else np
 
         for dim in sorted(dims_reduced):
             x = backend.expand_dims(x, axis=dim)
@@ -1522,9 +1644,24 @@ class Tensor:
         return backend.broadcast_to(x, target_shape)
 
     @staticmethod
-    def _unbroadcast(x, target_shape):
+    def _unbroadcast(
+        x: Any,
+        target_shape: Tuple[int, ...],
+    ) -> Any:
         """
-        Reduces shape of tensor x back to target_shape by summing over broadcasted dimensions
+        Reduce a broadcasted gradient ``x`` back to ``target_shape`` by summing over broadcasted axes.
+
+        Parameters
+        ----------
+        x : numpy.ndarray or cupy.ndarray
+            Gradient array with broadcasted shape.
+        target_shape : tuple[int, ...]
+            Original (pre-broadcast) shape to reduce to.
+
+        Returns
+        -------
+        numpy.ndarray or cupy.ndarray
+            Reduced gradient with shape ``target_shape``.
         """
         while x.ndim > len(target_shape):
             x = x.sum(axis=0)
@@ -1535,13 +1672,45 @@ class Tensor:
         return x.reshape(target_shape)
 
     @staticmethod
-    def _ensure_tensor(x, backend):
+    def _ensure_tensor(
+        x: Union["Tensor", Any], 
+        backend: Any
+    ) -> "Tensor":
+        """
+        Ensure that ``x`` is a :class:``Tensor`` on the specified backend.
+
+        If ``x`` is already a ``Tensor``, it is returned unchanged. Otherwise,
+        ``x`` is converted to a new tensor and placed on the device implied
+        by ``backend`` (NumPy → CPU, CuPy → CUDA).
+
+        Notes
+        -----
+        - This helper is used to support mixed operations between tensors and
+        Python scalars or array-like objects (e.g. ``Tensor + 3``).
+        """
         if isinstance(x, Tensor):
             return x
         return Tensor(x, device="cuda" if _HAS_CUPY and backend is cp else "cpu")
 
     @staticmethod
-    def _accumulate_grad(tensor, grad):
+    def _accumulate_grad(
+        tensor: "Tensor",
+        grad: Any
+    ) -> None:
+        """
+        Accumulate a gradient contribution into ``tensor.grad``.
+
+        If ``tensor.requires_grad`` is True, the provided gradient is added
+        to the tensor’s existing gradient buffer. If no gradient buffer
+        exists yet, it is initialized with ``grad``.
+
+        Notes
+        -----
+        - Gradients are accumulated (not overwritten) because a tensor may
+        contribute to the output through multiple paths in the computation graph.
+        - This mirrors PyTorch’s gradient accumulation semantics for leaf tensors.
+        - No operation is performed if ``tensor.requires_grad`` is False.
+        """
         if tensor.requires_grad:
             if tensor.grad is None:
                 tensor.grad = grad
@@ -1549,7 +1718,34 @@ class Tensor:
                 tensor.grad += grad
 
     @staticmethod
-    def zeros(*shape, requires_grad=False, device="cpu"):
+    def zeros(
+        *shape: int,
+        requires_grad: bool = False,
+        device: Optional[str] = "cpu",
+    ) -> "Tensor":
+        """
+        Create a tensor filled with zeros.
+
+        Parameters
+        ----------
+        *shape : int
+            Shape of the output tensor.
+        requires_grad : bool, default=False
+            If True (and global grad mode is enabled), operations on the tensor
+            will be tracked for automatic differentiation.
+        device : str or None, default="cpu"
+            Target device for the tensor (``"cpu"`` or ``"cuda"``).
+
+        Returns
+        -------
+        Tensor
+            A float32 tensor of zeros with the specified shape and device.
+
+        Notes
+        -----
+        - Equivalent to ``torch.zeros`` (restricted to float32).
+        - The backend (NumPy or CuPy) is selected based on ``device``.
+        """
         dev = _normalize_device(device) or "cpu"
         if dev == "cuda":
             if not _HAS_CUPY:
@@ -1561,7 +1757,40 @@ class Tensor:
         return Tensor(data, requires_grad=requires_grad)
 
     @staticmethod
-    def randn(*shape, requires_grad=False, scale=1., device="cpu"):
+    def randn(
+        *shape: int,
+        requires_grad: bool = False,
+        scale: float = 1.0,
+        device: Optional[str] = "cpu",
+    ) -> "Tensor":
+        """
+        Create a tensor with values sampled from a normal distribution.
+
+        Samples i.i.d. values from ``N(0, 1)`` and scales them by ``scale``,
+        resulting in a distribution ``N(0, scale^2)``.
+
+        Parameters
+        ----------
+        *shape : int
+            Shape of the output tensor.
+        requires_grad : bool, default=False
+            If True (and global grad mode is enabled), operations on the tensor
+            will be tracked for automatic differentiation.
+        scale : float, default=1.0
+            Multiplicative scale applied to the sampled values.
+        device : str or None, default="cpu"
+            Target device for the tensor (``"cpu"`` or ``"cuda"``).
+
+        Returns
+        -------
+        Tensor
+            A float32 tensor with normally distributed values.
+
+        Notes
+        -----
+        - Equivalent to ``torch.randn`` with an explicit scaling factor.
+        - Commonly used for parameter initialization.
+        """
         dev = _normalize_device(device) or "cpu"
         if dev == "cuda":
             if not _HAS_CUPY:

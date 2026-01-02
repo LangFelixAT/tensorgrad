@@ -1,4 +1,4 @@
-from typing import Any, Iterable, Optional, Literal, Sequence, Set, Tuple, Union
+from typing import Any, Iterable, Optional, Literal, Sequence, Tuple, Union
 
 import numpy as np
 try:

@@ -142,11 +142,11 @@ The goal here is not to reimplement [*micrograd*](https://github.com/karpathy/mi
 ## Example Usage
 
 ```python
-from src.tensor import Tensor
-from src.nn import Linear, ReLU, Sequential, CrossEntropyLoss
-from src.optim import Adam
-from src.data import TensorDataset, DataLoader
-from src.training import fit
+from tensorgrad.tensor import Tensor
+from tensorgrad.nn import Linear, ReLU, Sequential, CrossEntropyLoss
+from tensorgrad.optim import Adam
+from tensorgrad.data import TensorDataset, DataLoader
+from tensorgrad.training import fit
 
 # Dummy data
 x = Tensor.randn(1000, 20)

@@ -1810,32 +1810,33 @@ class Tensor:
         device: Optional[str] = "cpu",
     ) -> "Tensor":
         """
-        Create a tensor with values sampled from a normal distribution.
-
-        Samples i.i.d. values from ``N(0, 1)`` and scales them by ``scale``,
-        resulting in a distribution ``N(0, scale^2)``.
+        Create a tensor with integer values sampled uniformly from ``[low, high)``.
 
         Parameters
         ----------
-        *shape : int
+        low : int
+            Lower bound (inclusive) of the sampling interval.
+        high : int
+            Upper bound (exclusive) of the sampling interval.
+        size : int or tuple[int, ...]
             Shape of the output tensor.
         requires_grad : bool, default=False
-            If True (and global grad mode is enabled), operations on the tensor
-            will be tracked for automatic differentiation.
-        scale : float, default=1.0
-            Multiplicative scale applied to the sampled values.
+            If True, the tensor will be marked as requiring gradients.
+            Note that gradients through integer-valued tensors are not meaningful.
         device : str or None, default="cpu"
             Target device for the tensor (``"cpu"`` or ``"cuda"``).
 
         Returns
         -------
         Tensor
-            A float32 tensor with normally distributed values.
+            A float32 tensor containing values sampled uniformly from ``[low, high)``.
 
         Notes
         -----
-        - Equivalent to ``torch.randn`` with an explicit scaling factor.
-        - Commonly used for parameter initialization.
+        - Values are sampled as integers and cast to ``float32`` for compatibility
+        with the rest of the framework.
+        - Equivalent to ``torch.randint(low, high, size, dtype=torch.float32)``.
+        - Commonly used for generating class labels or index tensors.
         """
         dev = _normalize_device(device) or "cpu"
         if dev == "cuda":
@@ -1844,5 +1845,5 @@ class Tensor:
             xp = cp
         else:
             xp = np
-        data = scale * xp.random.randint(*shape).astype(xp.float32)
+        data = xp.random.randint(low, high, size).astype(xp.float32)
         return Tensor(data, requires_grad=requires_grad)

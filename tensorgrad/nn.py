@@ -356,8 +356,8 @@ class CrossEntropyLoss(Module):
         """
         log_probs = logits.log_softmax(dim=1)                         # shape: (B, C)
         targets = targets.unsqueeze(1)                                # shape: (B, 1)
-        targets = Tensor._ensure_tensor(targets.data, targets.backend)
-        targets.data = targets.data.astype(targets.backend.int64)
+        # targets = Tensor._ensure_tensor(targets.data, targets.backend)
+        # targets.data = targets.data.astype(targets.backend.int64)
         picked_log_probs = log_probs.gather(dim=1, index = targets)   # shape: (B, 1)
         loss = -picked_log_probs.squeeze(1)                           # shape: (B,)
 
@@ -691,3 +691,13 @@ class Conv2d(Module):
             Y = Y + self.bias.reshape(1, -1, 1, 1)
 
         return Y
+    
+class Flatten(Module):
+    """
+    Flatten input tensor from shape (N, ...) to (N, -1).
+
+    Typically used to transition from convolutional layers
+    to fully connected layers.
+    """
+    def forward(self, x: Tensor) -> Tensor:
+        return x.reshape(x.shape[0], -1)

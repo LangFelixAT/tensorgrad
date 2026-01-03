@@ -445,14 +445,55 @@ class Tensor:
         other = Tensor._ensure_tensor(other, self.backend)
 
         requires_grad = self.requires_grad or other.requires_grad
-        out_data = self.backend.matmul(self.data, other.data)
+
+        a = self.data
+        b = other.data
+
+        a_was_1d = (a.ndim == 1)
+        b_was_1d = (b.ndim == 1)
+
+        if a_was_1d:
+            a2 = a[None, :]
+        else:
+            a2 = a
+
+        if b_was_1d:
+            b2 = b[:, None]
+        else:
+            b2 = b
+
+        out2 = self.backend.matmul(a2, b2)
+
+        out_data = out2
+        if a_was_1d:
+            out_data = self.backend.squeeze(out_data, axis=-2)
+        if b_was_1d:
+            out_data = self.backend.squeeze(out_data, axis=-1)
+
         out = Tensor(out_data, (self, other), requires_grad=requires_grad)
 
         def _backward():
-            Tensor._accumulate_grad(self, Tensor._unbroadcast(self.backend.matmul(out.grad, self.backend.swapaxes(other.data, -1, -2)), self.data.shape))
-            Tensor._accumulate_grad(other, Tensor._unbroadcast(self.backend.matmul(self.backend.swapaxes(self.data, -1, -2), out.grad), other.data.shape))
-        out._backward = _backward
+            og = out.grad
+            if a_was_1d:
+                og = self.backend.expand_dims(og, axis=-2)
+            if b_was_1d:
+                og = self.backend.expand_dims(og, axis=-1)
 
+            dA2 = self.backend.matmul(og, self.backend.swapaxes(b2, -1, -2))
+            dB2 = self.backend.matmul(self.backend.swapaxes(a2, -1, -2), og)
+
+            dA = Tensor._unbroadcast(dA2, a2.shape)
+            dB = Tensor._unbroadcast(dB2, b2.shape)
+
+            if a_was_1d:
+                dA = self.backend.squeeze(dA, axis=0)
+            if b_was_1d:
+                dB = self.backend.squeeze(dB, axis=-1)
+
+            Tensor._accumulate_grad(self, dA)
+            Tensor._accumulate_grad(other, dB)
+
+        out._backward = _backward
         return out
 
     def __neg__(self) -> "Tensor":
@@ -574,9 +615,8 @@ class Tensor:
             od = out_data if (dim is None or keepdim) else self.backend.expand_dims(out_data, axis=dim)  # need to expand out_data to make it broadcastable with self.data
             mask = (self.data == od).astype(self.data.dtype)
             count = self.backend.sum(mask, axis=dim, keepdims=True)
-            grad = (mask / count) * out.grad
-            if not keepdim and dim is not None:
-                grad = Tensor._expand_like(grad, self.data.shape, dim)
+            og = out.grad if (dim is None or keepdim) else Tensor._expand_like(out.grad, self.data.shape, dim)
+            grad = (mask / count) * og
             Tensor._accumulate_grad(self, grad)
         out._backward = _backward
 
@@ -1010,17 +1050,6 @@ class Tensor:
         array([[12., 10.],
             [21., 21.]], dtype=float32)
         """
-        # out_data = self.backend.take_along_axis(self.data, index.data, axis=dim)
-        # out = Tensor(out_data, _prev=(self,), requires_grad=self.requires_grad)
-
-        # def _backward():
-        #     grad = self.backend.zeros_like(self.data)
-        #     self.backend.put_along_axis(grad, index.data, out.grad, axis=dim)
-        #     Tensor._accumulate_grad(self, grad)
-
-        # out._backward = _backward
-
-        # return out
         xp = self.backend
 
         idx = index.data
@@ -1031,9 +1060,6 @@ class Tensor:
         out = Tensor(out_data, _prev=(self,), requires_grad=self.requires_grad)
 
         def _backward():
-            if out.grad is None:
-                return
-
             grad = xp.zeros_like(self.data)
 
             idx_shape = idx.shape
@@ -1342,7 +1368,7 @@ class Tensor:
             Padding configuration:
             - ``int p`` → pad all sides by ``p``.
             - ``(pH, pW)`` → pad height and width symmetrically.
-            - ``(t, b, l, r)`` → pad top, bottom, left, and right separately.
+            - ``(l, r, t, b)`` → pad top, bottom, left, and right separately.
 
         Returns
         -------
@@ -1360,7 +1386,7 @@ class Tensor:
         elif len(padding) == 2:
             t = b = int(padding[0]); l = r = int(padding[1])
         else:
-            t, b, l, r = map(int, padding)
+            l, r, t, b = map(int, padding)
 
         out_data = self.backend.pad(self.data, ((0,0),(0,0),(t,b),(l,r)), mode="constant")
         out = Tensor(out_data, _prev=(self,), requires_grad=self.requires_grad)
@@ -1631,7 +1657,7 @@ class Tensor:
         >>> Xcols.shape
         (2, 27, 9)
         """
-        x_pad = x.pad2d((pH, pH, pW, pW))
+        x_pad = x.pad2d((pH, pW))
 
         cols = []
         for ky in range(kH):

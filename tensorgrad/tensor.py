@@ -571,7 +571,7 @@ class Tensor:
         out = Tensor(out_data, _prev=(self,), requires_grad=self.requires_grad)
 
         def _backward():
-            od = out_data if (dim is None or keepdim) else self.backend.expand_dims(out.data, axis=dim)  # need to expand out_data to make it broadcastable with self.data
+            od = out_data if (dim is None or keepdim) else self.backend.expand_dims(out_data, axis=dim)  # need to expand out_data to make it broadcastable with self.data
             mask = (self.data == od).astype(self.data.dtype)
             count = self.backend.sum(mask, axis=dim, keepdims=True)
             grad = (mask / count) * out.grad
@@ -675,8 +675,12 @@ class Tensor:
         out = self.sum(dim=dim, keepdim=keepdim)
         if dim is None:
             divisor = self.data.size
+        elif isinstance(dim, int):
+            divisor = self.data.shape[dim]
         else:
-            divisor = self.data.shape[dim] if isinstance(dim, int) else self.backend.prod([self.data.shape[d] for d in dim])
+            divisor = 1
+            for d in dim:
+                divisor *= self.data.shape[d]
 
         return out / self.backend.array(divisor, dtype=self.data.dtype)
 
@@ -737,8 +741,12 @@ class Tensor:
 
         if dim is None:
             count = self.data.size
+        elif isinstance(dim, int):
+            count = self.data.shape[dim]
         else:
-            count = self.data.shape[dim] if isinstance(dim, int) else self.backend.prod([self.data.shape[d] for d in dim])
+            count = 1
+            for d in dim:
+                count *= self.data.shape[d]
 
         divisor = count - 1 if unbiased and count > 1 else count
 
@@ -1002,16 +1010,50 @@ class Tensor:
         array([[12., 10.],
             [21., 21.]], dtype=float32)
         """
-        out_data = self.backend.take_along_axis(self.data, index.data, axis=dim)
+        # out_data = self.backend.take_along_axis(self.data, index.data, axis=dim)
+        # out = Tensor(out_data, _prev=(self,), requires_grad=self.requires_grad)
+
+        # def _backward():
+        #     grad = self.backend.zeros_like(self.data)
+        #     self.backend.put_along_axis(grad, index.data, out.grad, axis=dim)
+        #     Tensor._accumulate_grad(self, grad)
+
+        # out._backward = _backward
+
+        # return out
+        xp = self.backend
+
+        idx = index.data
+        if idx.dtype.kind != "i":
+            idx = idx.astype(xp.int64)
+
+        out_data = xp.take_along_axis(self.data, idx, axis=dim)
         out = Tensor(out_data, _prev=(self,), requires_grad=self.requires_grad)
 
         def _backward():
-            grad = self.backend.zeros_like(self.data)
-            self.backend.put_along_axis(grad, index.data, out.grad, axis=dim)
+            if out.grad is None:
+                return
+
+            grad = xp.zeros_like(self.data)
+
+            idx_shape = idx.shape
+            ndim = self.data.ndim
+
+            idx_tuple = []
+            for ax in range(ndim):
+                if ax == dim:
+                    idx_tuple.append(idx)
+                else:
+                    ar = xp.arange(self.data.shape[ax])
+                    shape = [1] * ndim
+                    shape[ax] = self.data.shape[ax]
+                    idx_tuple.append(ar.reshape(shape))
+
+            xp.add.at(grad, tuple(idx_tuple), out.grad)
+
             Tensor._accumulate_grad(self, grad)
 
         out._backward = _backward
-
         return out
 
     def exp(self) -> "Tensor":
@@ -1754,6 +1796,45 @@ class Tensor:
         else:
             xp = np
         data = xp.zeros(shape, dtype=xp.float32)
+        return Tensor(data, requires_grad=requires_grad)
+    
+    @staticmethod
+    def ones(
+        *shape: int,
+        requires_grad: bool = False,
+        device: Optional[str] = "cpu",
+    ) -> "Tensor":
+        """
+        Create a tensor filled with ones.
+
+        Parameters
+        ----------
+        *shape : int
+            Shape of the output tensor.
+        requires_grad : bool, default=False
+            If True (and global grad mode is enabled), operations on the tensor
+            will be tracked for automatic differentiation.
+        device : str or None, default="cpu"
+            Target device for the tensor (``"cpu"`` or ``"cuda"``).
+
+        Returns
+        -------
+        Tensor
+            A float32 tensor of ones with the specified shape and device.
+
+        Notes
+        -----
+        - Equivalent to ``torch.ones`` (restricted to float32).
+        - The backend (NumPy or CuPy) is selected based on ``device``.
+        """
+        dev = _normalize_device(device) or "cpu"
+        if dev == "cuda":
+            if not _HAS_CUPY:
+                raise RuntimeError("CUDA requested but CuPy is not installed/available.")
+            xp = cp
+        else:
+            xp = np
+        data = xp.ones(shape, dtype=xp.float32)
         return Tensor(data, requires_grad=requires_grad)
 
     @staticmethod

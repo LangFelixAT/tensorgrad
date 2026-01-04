@@ -127,8 +127,9 @@ class Tensor:
     -----
     - Backend is chosen per tensor: CPU uses NumPy, CUDA uses CuPy.
     - DType is normalized to ``float32`` on construction.
-    - Gradient storage ``.grad`` is allocated eagerly ``zeros_like(data)`` only if
-      ``requires_grad`` is True *and* global grad mode is enabled.
+    - Gradient storage ``.grad`` is allocated **lazily**: no gradient buffer is
+      created at construction time, even if ``requires_grad`` is True. The buffer
+      is allocated only when a gradient is first accumulated during backpropagation.
     - Operations use the instance's backend (``self.backend``) to remain
       device-agnostic.
     """
@@ -202,10 +203,12 @@ class Tensor:
         else:
             if _is_cupy_array(data):
                 backend = cp
-                data = data.astype(cp.float32)
+                if data.dtype != cp.float32:
+                    data = data.astype(cp.float32)
             elif isinstance(data, np.ndarray):
                 backend = np
-                data = data.astype(np.float32)
+                if data.dtype != np.float32:
+                    data = data.astype(np.float32)
             else:
                 backend = np
                 data = np.asarray(data, dtype=np.float32)
@@ -213,10 +216,12 @@ class Tensor:
         self.backend = backend
         self.data = data
         self.requires_grad = bool(requires_grad) and _grad_enabled
-        self.grad = self.backend.zeros_like(self.data) if self.requires_grad else None
+        self.grad = None
 
         self._backward = lambda: None
         self._prev = set(_prev)
+        self.is_leaf = (len(self._prev) == 0)
+        self.retain_grad = False
 
     @property
     def shape(self) -> Tuple[int, ...]:
@@ -1458,6 +1463,8 @@ class Tensor:
         for t in reversed(topo):
             if t.requires_grad:
                 t._backward()
+                if (not t.is_leaf) and (not t.retain_grad):
+                    t.grad = None
 
     def zero_grad(self) -> None:
         """
@@ -1469,8 +1476,8 @@ class Tensor:
         gradient accumulation across iterations.
         - Equivalent to ``torch.Tensor.grad.zero_()`` in PyTorch.
         """
-        if self.requires_grad:
-          self.grad = self.backend.zeros_like(self.data)
+        if self.grad is not None:
+            self.grad[...] = 0
 
     def __repr__(self) -> str:
         """
@@ -1499,6 +1506,10 @@ class Tensor:
         details.append(f"device='{dev}'")
 
         return f"tensor({data_str}, {', '.join(details)})"
+    
+    def retain_grad_(self):
+        self.retain_grad = True
+        return self
 
     def to(
         self,
@@ -1779,11 +1790,18 @@ class Tensor:
         - This mirrors PyTorch’s gradient accumulation semantics for leaf tensors.
         - No operation is performed if ``tensor.requires_grad`` is False.
         """
-        if tensor.requires_grad:
-            if tensor.grad is None:
-                tensor.grad = grad
-            else:
-                tensor.grad += grad
+        if tensor is None or not tensor.requires_grad:
+            return
+
+        backend = tensor.backend
+        grad = backend.asarray(grad)
+
+        if grad.shape != tensor.data.shape:
+            grad = backend.broadcast_to(grad, tensor.data.shape)
+
+        if tensor.grad is None:
+            tensor.grad = backend.zeros_like(tensor.data)
+        tensor.grad += grad
 
     @staticmethod
     def zeros(

@@ -398,7 +398,7 @@ class Dropout(Module):
         else:
             return x
         
-class BatchNorm1d(Module):
+class BatchNorm(Module):
     """
     Batch Normalization over a channel dimension.
 
@@ -479,6 +479,15 @@ class BatchNorm1d(Module):
             return x_hat * w + b
         else:
             return x_hat
+        
+class BatchNorm1d(BatchNorm):
+    pass
+
+class BatchNorm2d(BatchNorm):
+    pass
+
+class BatchNorm3d(BatchNorm):
+    pass
         
 class LayerNorm(Module):
     """
@@ -689,6 +698,88 @@ class Conv2d(Module):
             Y = Y + self.bias.reshape(1, -1, 1, 1)
 
         return Y
+    
+class MaxPool2d(Module):
+    """
+    2D max pooling (NCHW).
+
+    Parameters
+    ----------
+    kernel_size : int or (int, int)
+        Pool window size (kH, kW).
+    stride : int or (int, int) or None, default=None
+        Stride (sH, sW). If None, defaults to kernel_size.
+    padding : int or (int, int), default=0
+        Symmetric zero padding (pH, pW).
+    dilation : int or (int, int), default=1
+        Dilation (dH, dW).
+    """
+    def __init__(
+        self,
+        kernel_size: Union[int, Tuple[int, int]],
+        stride: Union[int, Tuple[int, int], None] = None,
+        padding: Union[int, Tuple[int, int]] = 0,
+        dilation: Union[int, Tuple[int, int]] = 1,
+    ) -> None:
+        super().__init__()
+        self.kernel_size = (kernel_size, kernel_size) if isinstance(kernel_size, int) else kernel_size
+        if stride is None:
+            stride = self.kernel_size
+        self.stride = (stride, stride) if isinstance(stride, int) else stride
+        self.padding = (padding, padding) if isinstance(padding, int) else padding
+        self.dilation = (dilation, dilation) if isinstance(dilation, int) else dilation
+
+    def __repr__(self):
+        return (f"{self.__class__.__name__}(kernel_size={self.kernel_size}, "
+                f"stride={self.stride}, padding={self.padding}, dilation={self.dilation})")
+
+    @staticmethod
+    def _out_hw(H: int, W: int, kH: int, kW: int, pH: int, pW: int, sH: int, sW: int, dH: int, dW: int):
+        """
+        Compute output spatial size for a 2D convolution.
+
+        Returns
+        -------
+        (Hout, Wout) : tuple[int, int]
+            Output height and width.
+        """
+        eff_kH = (kH - 1) * dH + 1
+        eff_kW = (kW - 1) * dW + 1
+        Hout = (H + 2 * pH - eff_kH) // sH + 1
+        Wout = (W + 2 * pW - eff_kW) // sW + 1
+        return int(Hout), int(Wout)
+    
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Parameters
+        ----------
+        x : Tensor
+            Input tensor of shape ``(N, C, H, W)``.
+
+        Returns
+        -------
+        Tensor
+            Output tensor of shape ``(N, C, H_out, W_out)``, where each spatial
+            location contains the maximum value over the corresponding
+            ``(kH, kW)`` pooling window.
+        """
+        kH, kW = self.kernel_size
+        sH, sW = self.stride
+        pH, pW = self.padding
+        dH, dW = self.dilation
+
+        N, C, H, W = x.shape
+        Hout, Wout = self._out_hw(H, W, kH, kW, pH, pW, sH, sW, dH, dW)
+
+        Xcols = Tensor._im2col(x, kH, kW, sH, sW, dH, dW, Hout, Wout, pH, pW)
+
+        K = kH * kW
+        HW = Hout * Wout
+        Xcols = Xcols.reshape(N, C, K, HW)
+
+        Y = Xcols.max(dim=2, keepdim=False)
+
+        return Y.reshape(N, C, Hout, Wout)
     
 class Flatten(Module):
     """

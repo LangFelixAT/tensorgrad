@@ -788,5 +788,8 @@ class Flatten(Module):
     Typically used to transition from convolutional layers
     to fully connected layers.
     """
+    def __repr__(self):
+        return (f"{self.__class__.__name__}()")
+
     def forward(self, x: Tensor) -> Tensor:
         return x.reshape(x.shape[0], -1)

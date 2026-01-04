@@ -58,6 +58,49 @@ class TensorDataset(Dataset):
         """Return number of samples."""
         return self.tensors[0].shape[0]
     
+class RandomHorizontalFlipDataset(Dataset):
+    """
+    Dataset wrapper applying random horizontal flips to image samples.
+
+    Wraps an existing dataset and, with probability ``p``, flips the input
+    image tensor horizontally (along the width dimension). The augmentation
+    is applied on-the-fly during ``__getitem__``.
+
+    Parameters
+    ----------
+    base_dataset : Dataset
+        Base dataset yielding samples of the form ``(x, y)``, where ``x`` is
+        an image tensor.
+    p : float, default=0.5
+        Probability of applying a horizontal flip to each sample.
+
+    Notes
+    -----
+    - The label ``y`` is returned unchanged.
+    - Augmentation does not increase dataset size or memory usage.
+    - Gradients are not tracked through the augmentation.
+    - Intended for training data; should not be used for validation or test sets.
+    """
+    def __init__(self, base_dataset: Dataset, p: float = 0.5) -> None:
+        self.base = base_dataset
+        self.p = float(p)
+
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+        x, y = self.base[idx]
+
+        backend = x.backend
+        data = x.data
+
+        # Random horizontal flip
+        if float(backend.random.rand()) < self.p:
+            data = data[..., :, ::-1].copy()
+
+        x_aug = Tensor(data, requires_grad=False)
+        return x_aug, y
+
+    def __len__(self) -> int:
+        return len(self.base)
+    
 class DataLoader:
     """
     Simple data loader providing batching and optional shuffling.

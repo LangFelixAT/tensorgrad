@@ -86,6 +86,22 @@ def evaluate(
 
     return total_loss / total_samples
 
+def accuracy(model: Any, dataloader: Any) -> float:
+    model.eval()
+    correct = 0
+    total = 0
+
+    with no_grad():
+        for x, y in dataloader:
+            logits = model(x)
+            pred = logits.data.argmax(axis=1)
+            y_true = y.data.astype(int).reshape(-1)
+
+            correct += int((pred == y_true).sum())
+            total += int(y_true.shape[0])
+
+    return 100.0 * correct / max(1, total)
+
 def fit(
     model: Any,
     train_loader: Any,
@@ -94,9 +110,11 @@ def fit(
     num_epochs: int = 10,
     val_loader: Optional[Any] = None,
     scheduler: Optional[Any] = None,
-) -> None:
+    compute_accuracy: bool = True,
+) -> dict:
     """
-    Train a model for multiple epochs with optional validation and LR scheduling.
+    Train a model for multiple epochs with optional validation, accuracy tracking,
+    and learning-rate scheduling.
 
     Parameters
     ----------
@@ -111,18 +129,39 @@ def fit(
     num_epochs : int, default=10
         Number of epochs to train.
     val_loader : DataLoader or None, default=None
-        Optional validation loader. If provided, validation loss is computed each epoch.
+        Optional validation loader. If provided, validation loss and accuracy
+        are computed each epoch.
     scheduler : LRScheduler or None, default=None
-        Optional learning rate scheduler. If the scheduler is an instance of
+        Optional learning-rate scheduler. If the scheduler is an instance of
         :class:`ReduceLROnPlateau`, it is stepped with the monitored metric
-        (validation loss if available, else training loss). Otherwise it is stepped
-        once per epoch with no arguments.
+        (validation loss if available, else training loss). Otherwise it is
+        stepped once per epoch with no arguments.
+    compute_accuracy : bool, default=True
+        If True, compute classification accuracy on the training loader and
+        validation loader (if provided) each epoch.
+
+    Returns
+    -------
+    dict
+        Training history containing per-epoch metrics with keys:
+        ``"train_loss"``, ``"val_loss"``, ``"train_acc"``, and ``"val_acc"``.
+        Values are lists of floats (or ``None`` where not applicable).
 
     Notes
     -----
-    - This function prints a simple progress line per epoch including current LR.
+    - This function prints a progress line per epoch including current learning rate,
+      loss, and (optionally) accuracy.
     - Assumes the optimizer exposes a float attribute ``lr``.
+    - Accuracy computation assumes a classification task where predictions are
+      obtained via ``argmax`` over the model outputs.
     """
+    history = {
+        "train_loss": [],
+        "val_loss": [],
+        "train_acc": [],
+        "val_acc": [],
+    }
+
     for epoch in range(num_epochs):
         train_loss = train_one_epoch(model, train_loader, loss_fn, optimizer)
         if val_loader is not None:
@@ -130,12 +169,31 @@ def fit(
         else:
             val_loss = None
 
+        if compute_accuracy:
+            train_acc = accuracy(model, train_loader)
+            val_acc = accuracy(model, val_loader) if val_loader is not None else None
+        else:
+            train_acc = val_acc = None
+
         if scheduler is not None:
             if isinstance(scheduler, ReduceLROnPlateau):
                 scheduler.step(val_loss if val_loss is not None else train_loss)
             else:
                 scheduler.step()
 
+        history["train_loss"].append(train_loss)
+        history["val_loss"].append(val_loss)
+        history["train_acc"].append(train_acc)
+        history["val_acc"].append(val_acc)
+
         lr_str = f" lr={optimizer.lr:.6g}"
-        print(f"Epoch {epoch+1}/{num_epochs},{lr_str} Train: {train_loss:.6f}"
-              + (f"  Val: {val_loss:.6f}" if val_loss is not None else ""))
+        msg = f"Epoch {epoch+1}/{num_epochs},{lr_str} Train: {train_loss:.4f}"
+        if train_acc is not None:
+            msg += f" ({train_acc:.2f}%)"
+        if val_loss is not None:
+            msg += f"  Val: {val_loss:.4f}"
+        if val_acc is not None:
+            msg += f" ({val_acc:.2f}%)"
+        print(msg)
+
+    return history

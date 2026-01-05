@@ -761,14 +761,12 @@ class Tensor:
         Notes
         -----
         **Mathematical definition:**
-        \[
-        \text{Var}(x) = \frac{1}{N - δ} \sum_i (x_i - \bar{x})^2
-        \]
-        where \( δ = 1 \) if ``unbiased=True`` and 0 otherwise.
+        Var(x) = sum((x_i - mean(x))^2) / (N - delta)
+        where delta = 1 if unbiased=True and 0 otherwise.
 
         **Gradient behavior:**
         - The gradient propagates through both the subtraction and squaring steps.
-        - The scaling by \(1/N\) or \(1/(N-1)\) is automatically handled by the
+        - The scaling by (1/N) or (1/(N-1)) is automatically handled by the
         autograd engine.
 
         Examples
@@ -1091,7 +1089,7 @@ class Tensor:
         """
         Element-wise exponential function.
 
-        Computes :math:``y_i = e^{x_i}`` for each element in the tensor.
+        Computes y_i = exp(x_i) for each element in the tensor.
 
         Returns
         -------
@@ -1127,7 +1125,7 @@ class Tensor:
         """
         Element-wise natural logarithm.
 
-        Computes :math:``y_i = \log(x_i)`` for each element of the tensor.
+        Computes y_i = log(x_i) for each element in the tensor.
 
         Returns
         -------
@@ -1160,7 +1158,7 @@ class Tensor:
         """
         Element-wise hyperbolic tangent.
 
-        Computes :math:``y_i = \\tanh(x_i)`` for each element of the tensor.
+        Computes y_i = tanh(x_i) for each element in the tensor.
 
         Returns
         -------
@@ -1193,7 +1191,7 @@ class Tensor:
         """
         Element-wise logistic sigmoid function.
 
-        Computes :math:``y_i = \\frac{1}{1 + e^{-x_i}}`` for each element of the tensor.
+        Computes y_i = 1 / (1 + exp(-x_i)) for each element of the tensor.
 
         Returns
         -------
@@ -1226,7 +1224,7 @@ class Tensor:
         """
         Element-wise Rectified Linear Unit (ReLU) activation.
 
-        Computes :math:``y_i = \\max(0, x_i)`` for each element of the tensor.
+        Computes y_i = max(0, x_i) for each element of the tensor.
 
         Returns
         -------
@@ -1261,8 +1259,7 @@ class Tensor:
 
         Computes the approximate GELU function:
 
-        .. math::
-            \\text{GELU}(x) \\approx 0.5x\\left[1 + \\tanh\\left(\\sqrt{\\frac{2}{\\pi}}(x + 0.044715x^3)\\right)\\right]
+        GELU(x) ≈ 0.5 * x * (1 + tanh(sqrt(2/pi) * (x + 0.044715 * x^3)))
 
         Returns
         -------
@@ -1295,8 +1292,7 @@ class Tensor:
 
         Computes:
 
-        .. math::
-            \\text{logsumexp}(x) = \\log\\sum_i e^{x_i}
+        logsumexp(x) = log(sum(exp(x_i)))
 
         but in a numerically stable way by subtracting the maximum value along
         the specified dimension before exponentiation.

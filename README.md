@@ -135,6 +135,12 @@ The goal here is not to reimplement [*micrograd*](https://github.com/karpathy/mi
     │   ├── data.py             # Dataset and DataLoader
     │   ├── training.py         # Training and evaluation loops
     │   └── checkpoint.py       # Save/load checkpoints
+    ├── tests/                  # Pytest-based correctness tests (vs PyTorch)
+    ├── demos/                  # Jupyter notebooks (MNIST, CIFAR-10)
+    ├── pytest.ini              # Pytest configuration
+    ├── requirements.txt        # Core runtime dependency (numpy)
+    ├── requirements-dev.txt    # Development and testing dependencies (pytest, PyTorch for parity tests)
+    ├── requirements-gpu.txt    # Optional GPU support via CuPy
     └── README.md
 
 ---
@@ -167,6 +173,31 @@ optimizer = Adam(model.parameters(), lr=1e-3)
 
 fit(model, loader, loss_fn, optimizer, num_epochs=10)
 ```
+
+The repository includes Jupyter notebooks demonstrating end-to-end training with the framework.
+
+### Convolutional Neural Network on CIFAR-10
+- Custom CNN built using `Conv2d`, `ReLU`, `MaxPool2d`, `Dropout`, and `Linear`
+- Trained on the CIFAR-10 dataset
+- Validates convolution, pooling, backpropagation, and training utilities
+
+### Multilayer Perceptron on MNIST
+- Fully connected MLP built using `Linear` and `ReLU`
+- Trained on the MNIST handwritten digits dataset
+
+---
+
+## Testing & Correctness
+- `pytest`-based test suite
+- Forward and backward computations validated against PyTorch
+- Current coverage focuses on:
+  - core tensor ops (elementwise, broadcasting, reductions)
+  - matrix multiplication
+  - indexing / padding / concatenation
+  - numerically sensitive ops (e.g. `log_softmax`)
+  - `im2col` utilities
+  - optimizer parity tests (`SGD`, `Adam`, `AdamW`)
+  - training loop parity checks
 
 ---
 
